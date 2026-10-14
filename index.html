@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LolzDOS 1.0</title>
+<style>
+  html, body { margin:0; height:100%; background:#000; overflow:hidden; color:#e6e6e6;
+    font:12px/1 -apple-system, "Segoe UI", system-ui, sans-serif; }
+  #bar { position:fixed; top:0; left:0; right:0; height:28px; z-index:30; display:flex; align-items:center;
+    gap:2px; padding:0 6px; box-sizing:border-box; background:rgba(22,22,24,.85);
+    -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,255,255,.07); user-select:none; }
+  #bar button { background:none; border:0; color:#e6e6e6; font:inherit; height:22px; padding:0 10px; border-radius:5px; cursor:pointer; }
+  #bar button:hover, #bar button.on { background:rgba(255,255,255,.12); }
+  #clock { margin-left:auto; padding-right:6px; color:#cfcfd2; font-variant-numeric:tabular-nums; }
+  #screen { position:fixed; top:28px; left:0; right:0; bottom:0; background:#000; display:flex; align-items:center; justify-content:center; }
+  #stage { position:relative; width:100%; height:100%; background:#000; }
+  #stage .jsdos-rso { width:100%; height:100%; }
+  #stage canvas { width:100% !important; height:100% !important; image-rendering:pixelated; outline:none; }
+  #stage.m11 canvas { width:auto !important; height:auto !important; max-width:100%; max-height:100%; }
+  #status { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center;
+    padding:24px; color:#8f8f95; background:#000; z-index:5; line-height:1.6; }
+  #status.hide { display:none; }
+  #status { font-family:"Courier New", monospace; font-size:14px; }
+  #menu { position:fixed; display:none; z-index:40; min-width:236px; padding:6px; border-radius:9px;
+    background:rgba(30,30,33,.96); -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px);
+    border:1px solid rgba(255,255,255,.1); box-shadow:0 14px 34px rgba(0,0,0,.6); }
+  #menu.open { display:block; }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:5px 6px; }
+  .sep { height:1px; background:rgba(255,255,255,.08); margin:4px 0; }
+  select, input[type=date] { background:#2a2a2e; color:#eee; border:1px solid #3a3a40; border-radius:5px; padding:3px 6px; font:inherit; color-scheme:dark; }
+  #menu .item { display:block; width:100%; text-align:left; background:none; border:0; color:#e6e6e6; font:inherit; padding:7px 6px; border-radius:5px; cursor:pointer; }
+  #menu .item:hover { background:rgba(255,255,255,.1); }
+  #drop { position:fixed; inset:28px 0 0 0; z-index:35; display:none; align-items:center; justify-content:center;
+    background:rgba(10,10,12,.7); border:2px dashed #6a6a72; box-sizing:border-box; font-size:18px; color:#ddd; pointer-events:none; }
+  #drop.on { display:flex; }
+  #toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); z-index:60; max-width:80vw;
+    background:rgba(30,30,33,.95); border:1px solid rgba(255,255,255,.12); padding:9px 14px; border-radius:8px; display:none; }
+  #net { position:fixed; inset:28px 0 0 0; z-index:50; display:none; flex-direction:column; background:#111; }
+  #net.on { display:flex; }
+  #netbar { display:flex; align-items:center; gap:8px; height:34px; padding:0 8px; background:#1b1b1e; border-bottom:1px solid #2c2c30; flex:none; }
+  #neturl { flex:1; color:#aaa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #netbar button { background:#2a2a2e; color:#eee; border:1px solid #3a3a40; border-radius:5px; height:24px; padding:0 10px; font:inherit; cursor:pointer; }
+  #netbar button:hover { background:#36363b; }
+  #netframe { flex:1; border:0; background:#fff; }
+  #nethint { color:#777; padding:4px 10px; background:#151517; flex:none; }
+</style>
+</head>
+<body>
+
+<div id="bar">
+  <button id="btnSettings">Настройки ▾</button>
+  <button id="btnReboot">Reboot</button>
+  <button id="btnFs">Fullscreen</button>
+  <button id="btnCopy">Copy history</button>
+  <span id="clock">1998-06-25 12:00</span>
+</div>
+
+<div id="menu">
+  <div class="row"><span>RAM</span>
+    <select id="selRam"><option value="16">16 MB</option><option value="32">32 MB</option><option value="64">64 MB</option></select></div>
+  <div class="row"><span>Дата</span><input type="date" id="inDate" value="1998-06-25"></div>
+  <div class="row"><span>Масштаб</span>
+    <select id="selScale"><option value="43">4:3</option><option value="fit">Растянуть</option><option value="11">1:1</option></select></div>
+  <div class="row"><span>Звук</span>
+    <select id="selSound"><option value="sb16">SB16</option><option value="sbpro1">SBPro</option><option value="none">Speaker</option></select></div>
+  <div class="sep"></div>
+  <button class="item" id="btnUpload">Загрузить файл в DOS…</button>
+  <input type="file" id="fileInput" multiple hidden>
+  <div class="sep"></div>
+  <button class="item" id="btnFlopIn">Вставить дискету A: (.img)…</button>
+  <button class="item" id="btnFlopNew">Новая пустая дискета A:</button>
+  <button class="item" id="btnFlopOut">Сохранить дискету A: (.img)</button>
+  <input type="file" id="flopInput" accept=".img,.ima,.vfd,.flp" hidden>
+</div>
+
+<div id="screen"><div id="stage"><div id="status"><span class="spin">/</span>&nbsp; Загрузка JS-DOS…</div></div></div>
+<div id="drop">Отпустите файл — он попадёт в C:\DOWNLOAD</div>
+<div id="toast"></div>
+
+<div id="net">
+  <div id="netbar">
+    <span id="neturl"></span>
+    <button id="netTab">Открыть в новой вкладке</button>
+    <button id="netClose">Закрыть браузер и вернуться в DOS</button>
+  </div>
+  <div id="nethint">Если страница пустая — сайт запрещает встраивание, откройте его в новой вкладке.</div>
+  <iframe id="netframe" sandbox="allow-scripts allow-forms allow-popups allow-same-origin"></iframe>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var LOCAL = "jsdos/", CDN = "https://v8.js-dos.com/latest/";
+  var $ = function (id) { return document.getElementById(id); };
+  var stage = $("stage"), menu = $("menu");
+  var base = null, player = null, ci = null, slash = false, blobUrl = null, busy = false;
+  var hist = "", floppy = null;
+  var uploads = {};                       // name -> Uint8Array, re-injected on every reboot
+  var S = { ram: "16", date: "1998-06-25", scale: "43", sound: "sb16" };
+  try { Object.assign(S, JSON.parse(localStorage.getItem("lolzdos") || "{}")); } catch (e) {}
+  function save() { try { localStorage.setItem("lolzdos", JSON.stringify(S)); } catch (e) {} }
+
+  /* ---------- virtual clock ---------- */
+  var base0 = 0, t0 = 0;
+  function clockReset() { base0 = Date.parse(S.date + "T12:00:00Z"); if (isNaN(base0)) base0 = Date.parse("1998-06-25T12:00:00Z"); t0 = performance.now(); tick(); }
+  function clockText() { var d = new Date(base0 + performance.now() - t0).toISOString(); return d.slice(0, 10) + " " + d.slice(11, 16); }
+  function tick() { $("clock").textContent = clockText(); }
+  setInterval(tick, 5000);
+  var spinF = ["/", "-", "\\", "|"], spinI = 0;
+  setInterval(function () {
+    var el = document.querySelectorAll(".spin"); if (!el.length) return;
+    spinI = (spinI + 1) % 4; for (var i = 0; i < el.length; i++) el[i].textContent = spinF[spinI];
+  }, 120);
+
+  /* ---------- helpers ---------- */
+  function toast(t) { var e = $("toast"); e.textContent = t; e.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(function () { e.style.display = "none"; }, 3500); }
+  function say(t) { var s = $("status"); if (!s.parentNode) stage.appendChild(s); s.classList.remove("hide"); s.innerHTML = t; }
+  function focusDos() { var c = stage.querySelector("canvas"); if (c) c.focus(); }
+  function dosName(n) {
+    n = n.toUpperCase(); var i = n.lastIndexOf("."), b = i > 0 ? n.slice(0, i) : n, x = i > 0 ? n.slice(i + 1) : "";
+    var clean = function (s) { return s.replace(/[^A-Z0-9_!#$%&'()@^`{}~-]/g, "_"); };
+    b = clean(b).slice(0, 8) || "FILE"; x = clean(x).slice(0, 3); return x ? b + "." + x : b;
+  }
+  function p(path) { return (slash ? "/" : "") + path; }
+  async function fsWrite(path, data) { await ci.fsWriteFile(p(path), data); }
+
+  /* ---------- zip writer (stored) : builds the disk bundle in the browser ---------- */
+  var crcT = (function () { var t = [], c, n, k; for (n = 0; n < 256; n++) { c = n; for (k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(u) { var c = 0xFFFFFFFF; for (var i = 0; i < u.length; i++) c = crcT[(c ^ u[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function makeZip(entries) {
+    var enc = new TextEncoder(), parts = [], cen = [], off = 0;
+    entries.forEach(function (e) {
+      var nm = enc.encode(e.name), d = e.data || new Uint8Array(0), crc = crc32(d), dir = /\/$/.test(e.name);
+      var h = new DataView(new ArrayBuffer(30));
+      h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(12, 33, true);
+      h.setUint32(14, crc, true); h.setUint32(18, d.length, true); h.setUint32(22, d.length, true); h.setUint16(26, nm.length, true);
+      parts.push(h.buffer, nm, d);
+      var c = new DataView(new ArrayBuffer(46));
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(14, 33, true);
+      c.setUint32(16, crc, true); c.setUint32(20, d.length, true); c.setUint32(24, d.length, true); c.setUint16(28, nm.length, true);
+      c.setUint32(38, dir ? 0x10 : 0, true); c.setUint32(42, off, true);
+      cen.push(c.buffer, nm);
+      off += 30 + nm.length + d.length;
+    });
+    var cs = 0; cen.forEach(function (b) { cs += b.byteLength || b.length; });
+    var z = new DataView(new ArrayBuffer(22));
+    z.setUint32(0, 0x06054b50, true); z.setUint16(8, entries.length, true); z.setUint16(10, entries.length, true);
+    z.setUint32(12, cs, true); z.setUint32(16, off, true);
+    return new Blob(parts.concat(cen, [z.buffer]), { type: "application/zip" });
+  }
+  function dosboxConf() {
+    return ["[sdl]", "autolock=false", "[cpu]", "core=auto", "cputype=auto", "cycles=auto",
+      "[dosbox]", "machine=svga_s3", "memsize=" + S.ram,
+      "[sblaster]", "sbtype=" + S.sound, "[speaker]", "pcspeaker=true",
+      "[autoexec]", "@echo off", "mount c ."].concat(floppy ? ["imgmount a c:\\FLOPPY.IMG -t floppy"] : [], ["c:", "call AUTOEXEC.BAT", ""]).join("\n");
+  }
+  async function buildBundle() {
+    var m = await (await fetch("disk_manifest.json", { cache: "no-store" })).json(), enc = new TextEncoder();
+    var entries = [{ name: ".jsdos/dosbox.conf", data: enc.encode(dosboxConf()) }];
+    m.dirs.forEach(function (d) { entries.push({ name: d + "/" }); });
+    var datas = await Promise.all(m.files.map(function (f) { return fetch("disk_c/" + f, { cache: "no-store" }).then(function (r) { if (!r.ok) throw 0; return r.arrayBuffer(); }); }));
+    m.files.forEach(function (f, i) { entries.push({ name: f, data: new Uint8Array(datas[i]) }); });
+    if (floppy) entries.push({ name: "FLOPPY.IMG", data: floppy });
+    entries.push({ name: "LOLZDATE.CFG", data: enc.encode(clockText()) });
+    Object.keys(uploads).forEach(function (n) { entries.push({ name: "DOWNLOAD/" + n, data: uploads[n] }); });
+    return URL.createObjectURL(makeZip(entries));
+  }
+
+  /* ---------- emulator ---------- */
+  function loadLib(prefix) {
+    return new Promise(function (ok, fail) {
+      var css = document.createElement("link"); css.rel = "stylesheet"; css.href = prefix + "js-dos.css"; document.head.appendChild(css);
+      var s = document.createElement("script"); s.src = prefix + "js-dos.js";
+      s.onload = function () { ok(prefix); }; s.onerror = function () { s.remove(); css.remove(); fail(); };
+      document.head.appendChild(s);
+    });
+  }
+  async function boot(newFloppy) {
+    clockReset(); hist = "";
+    if (newFloppy) floppy = newFloppy;
+    else if (ci && floppy) { try { floppy = new Uint8Array(await ci.fsReadFile(p("FLOPPY.IMG"))); } catch (e) {} }
+    if (player) { try { await player.stop(); } catch (e) {} player = null; ci = null; stage.innerHTML = '<div id="status"></div>'; }
+    if (blobUrl) { URL.revokeObjectURL(blobUrl); blobUrl = null; }
+    say('<span class="spin">/</span>&nbsp; Загрузка LolzDOS…');
+    var url; try { url = blobUrl = await buildBundle(); } catch (e) { url = "lolzdos.jsdos"; toast("Не удалось собрать диск, использую lolzdos.jsdos"); }
+    var o = { url: url, autoStart: true, kiosk: true, noSideBar: true, noFullscreen: true, noCloud: true,
+      onEvent: function (ev, arg) {
+        if (ev === "ci-ready") { ci = arg; onReady(); }
+        if (ev === "ci-ready" || ev === "emu-ready") $("status").classList.add("hide");
+      } };
+    if (base === LOCAL) o.pathPrefix = LOCAL + "emulators/";
+    player = Dos(stage, o);
+    setTimeout(function () { $("status").classList.add("hide"); }, 5000);
+  }
+  async function onReady() {
+    var t = clockText();
+    try { await ci.fsWriteFile("LOLZDATE.CFG", t); slash = false; }
+    catch (e) { try { await ci.fsWriteFile("/LOLZDATE.CFG", t); slash = true; } catch (e2) {} }
+    try { ci.events().onStdout(function (m) { hist = (hist + m).slice(-8192); }); } catch (e) {}
+    applyScale(); setTimeout(focusDos, 300);
+  }
+
+  /* ---------- scaling ---------- */
+  function applyScale() {
+    var sw = innerWidth, sh = innerHeight - 28;
+    stage.classList.toggle("m11", S.scale === "11");
+    var w = "100%", h = "100%";
+    if (S.scale === "43") { var ww = Math.min(sw, sh * 4 / 3); w = ww + "px"; h = ww * 3 / 4 + "px"; }
+    stage.style.width = w; stage.style.height = h;
+  }
+  addEventListener("resize", applyScale);
+
+  /* ---------- settings menu ---------- */
+  function openMenu(on) {
+    var b = $("btnSettings"), r = b.getBoundingClientRect();
+    menu.style.left = r.left + "px"; menu.style.top = (r.bottom + 4) + "px";
+    menu.classList.toggle("open", on); b.classList.toggle("on", on);
+  }
+  $("btnSettings").onclick = function (e) { e.stopPropagation(); openMenu(!menu.classList.contains("open")); };
+  document.addEventListener("click", function (e) { if (!menu.contains(e.target)) { openMenu(false); } });
+  $("selRam").value = S.ram; $("inDate").value = S.date; $("selScale").value = S.scale; $("selSound").value = S.sound;
+  $("selRam").onchange = function () { S.ram = this.value; save(); toast("RAM " + S.ram + " MB — применится после Reboot"); };
+  $("selSound").onchange = function () { S.sound = this.value; save(); toast("Звук изменён — применится после Reboot"); };
+  $("selScale").onchange = function () { S.scale = this.value; save(); applyScale(); };
+  $("inDate").onchange = async function () {
+    if (!this.value) return; S.date = this.value; save(); clockReset();
+    if (ci) { try { await fsWrite("LOLZDATE.CFG", clockText()); } catch (e) {} }
+  };
+  $("btnReboot").onclick = function () { openMenu(false); if (base) boot(); };
+  $("btnFs").onclick = function () { var d = document.documentElement; (d.requestFullscreen || d.webkitRequestFullscreen).call(d); setTimeout(focusDos, 300); };
+
+  /* ---------- upload / drag & drop ---------- */
+  /* extensions that make sense for DOS (edit this list to allow more) */
+  var ALLOWED = ("COM EXE BAT TXT DOC NFO ASM BAS C H " +                          // programs and text
+                 "DAT CFG INI SYS OVL OVR BIN LST MAP HLP DIZ " +                  // config and game data
+                 "PAK WAD GRP LVL SND VOC WAV MID XMI SBK FNT PAL PCX BMP TGA " +  // game assets
+                 "IMG IMA VFD FLP").split(" ");                                    // floppy images
+  var MAX_FILE = 8 * 1024 * 1024;
+  function extOf(n) { var i = n.lastIndexOf("."); return i > 0 ? n.slice(i + 1).toUpperCase() : ""; }
+  function accept() { return ALLOWED.map(function (x) { return "." + x.toLowerCase(); }).join(","); }
+  $("fileInput").accept = accept();
+  async function upload(files) {
+    var bad = [];
+    for (var i = 0; i < files.length; i++) {
+      var f = files[i];
+      if (ALLOWED.indexOf(extOf(f.name)) < 0) { bad.push(f.name + " (тип)"); continue; }
+      if (f.size > MAX_FILE && !/\.(IMG|IMA|VFD|FLP)$/i.test(f.name)) { bad.push(f.name + " (>8 МБ)"); continue; }
+      var name = dosName(f.name), data = new Uint8Array(await f.arrayBuffer());
+      if (/\.(IMG|IMA|VFD|FLP)$/i.test(f.name) && FLOPPY_SIZES.indexOf(data.length) >= 0) { insertFloppy(data); return; }
+      uploads[name] = data;
+      if (!ci) { toast(name + " будет добавлен при загрузке DOS"); continue; }
+      try { await fsWrite("DOWNLOAD/" + name, data); toast("Сохранено: C:\\DOWNLOAD\\" + name + " — запустите по имени"); }
+      catch (e) { toast("Не удалось записать " + name); }
+    }
+    if (bad.length) toast("Пропущено, для DOS не подходит: " + bad.join(", "));
+    focusDos();
+  }
+  $("btnUpload").onclick = function () { $("fileInput").click(); };
+  $("fileInput").onchange = function () { openMenu(false); upload(this.files); this.value = ""; };
+  var dragN = 0;
+  function hasFiles(e) { return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], "Files") >= 0; }
+  addEventListener("dragenter", function (e) { if (hasFiles(e)) { e.preventDefault(); dragN++; $("drop").classList.add("on"); } });
+  addEventListener("dragover", function (e) { if (hasFiles(e)) e.preventDefault(); });
+  addEventListener("dragleave", function (e) { if (hasFiles(e) && --dragN <= 0) { dragN = 0; $("drop").classList.remove("on"); } });
+  addEventListener("drop", function (e) { if (!hasFiles(e)) return; e.preventDefault(); dragN = 0; $("drop").classList.remove("on"); upload(e.dataTransfer.files); });
+
+  /* ---------- copy history ---------- */
+  function cleanHist() { return hist.replace(/\r\n?/g, "\n").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "").slice(-512); }
+  $("btnCopy").onclick = async function () {
+    var t = cleanHist();
+    if (!t.trim()) { toast("История пуста: DOS ещё ничего не вывел через консоль"); return; }
+    try { await navigator.clipboard.writeText(t); }
+    catch (e) { var a = document.createElement("textarea"); a.value = t; document.body.appendChild(a); a.select(); try { document.execCommand("copy"); } catch (e2) {} a.remove(); }
+    toast("Скопировано символов: " + t.length); focusDos();
+  };
+
+  /* ---------- floppy A: ---------- */
+  var FLOPPY_SIZES = [163840, 184320, 327680, 368640, 737280, 1228800, 1474560, 2949120];
+  function blankFloppy() {
+    var b = new Uint8Array(1474560), w16 = function (o, v) { b[o] = v & 255; b[o + 1] = v >> 8; };
+    b.set([0xEB, 0x3C, 0x90], 0); b.set(new TextEncoder().encode("LOLZDOS "), 3);
+    w16(11, 512); b[13] = 1; w16(14, 1); b[16] = 2; w16(17, 224); w16(19, 2880); b[21] = 0xF0; w16(22, 9); w16(24, 18); w16(26, 2);
+    b[38] = 0x29; b.set([0x4C, 0x4F, 0x4C, 0x5A], 39);
+    b.set(new TextEncoder().encode("LOLZ FLOPPY"), 43); b.set(new TextEncoder().encode("FAT12   "), 54);
+    b[510] = 0x55; b[511] = 0xAA;
+    [512, 512 + 9 * 512].forEach(function (o) { b[o] = 0xF0; b[o + 1] = 0xFF; b[o + 2] = 0xFF; });
+    return b;
+  }
+  function insertFloppy(data) {
+    floppy = data; toast("Дискета вставлена в A: — перезагрузка…");
+    setTimeout(function () { if (base) boot(data); }, 400);
+  }
+  $("btnFlopIn").onclick = function () { $("flopInput").click(); };
+  $("flopInput").onchange = async function () {
+    openMenu(false); var f = this.files[0]; this.value = ""; if (!f) return;
+    var d = new Uint8Array(await f.arrayBuffer());
+    if (FLOPPY_SIZES.indexOf(d.length) < 0) { toast("Это не похоже на образ дискеты (размер " + d.length + ")"); return; }
+    insertFloppy(d);
+  };
+  $("btnFlopNew").onclick = function () { openMenu(false); insertFloppy(blankFloppy()); };
+  $("btnFlopOut").onclick = async function () {
+    openMenu(false); var d = floppy;
+    if (ci) { try { d = new Uint8Array(await ci.fsReadFile(p("FLOPPY.IMG"))); floppy = d; } catch (e) {} }
+    if (!d) { toast("Дискета не вставлена"); return; }
+    var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([d])); a.download = "LOLZDOS_A.IMG";
+    document.body.appendChild(a); a.click(); a.remove(); toast("Сохранено LOLZDOS_A.IMG (перед этим лучше выполнить EJECT в DOS)");
+  };
+
+  /* ---------- NET command: poll C:\NET_URL.TMP ---------- */
+  var netUrl = "";
+  function normUrl(t) {
+    t = t.replace(/^["']|["']$/g, "").trim(); if (!t) return null;
+    if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(t)) t = "https://" + t;
+    try { var u = new URL(t); return /^https?:$/.test(u.protocol) ? u.href : null; } catch (e) { return null; }
+  }
+  function openNet(u) { netUrl = u; $("neturl").textContent = u; $("netframe").src = u; $("net").classList.add("on"); }
+  function closeNet() { $("net").classList.remove("on"); $("netframe").src = "about:blank"; setTimeout(focusDos, 100); }
+  $("netClose").onclick = closeNet;
+  $("netTab").onclick = function () { window.open(netUrl, "_blank", "noopener"); };
+  setInterval(async function () {
+    if (!ci || busy || $("net").classList.contains("on")) return;
+    busy = true;
+    try {
+      var d = await ci.fsReadFile(p("NET_URL.TMP"));
+      if (d && d.length) {
+        var txt = new TextDecoder().decode(d).replace(/[\r\n\x1a]+/g, " ").trim();
+        try { await ci.fsDeleteFile(p("NET_URL.TMP")); } catch (e) {}
+        var u = normUrl(txt); if (u) openNet(u); else toast("NET: неверный адрес");
+      }
+    } catch (e) { /* file not there yet */ }
+    busy = false;
+  }, 700);
+
+  /* ---------- start ---------- */
+  if (location.protocol === "file:") {
+    say("Откройте страницу через локальный сервер (браузер блокирует загрузку диска с file://).<br>Запустите <b>python3 serve.py</b> (Windows: serve.bat) и откройте http://localhost:8000/");
+    return;
+  }
+  loadLib(LOCAL).catch(function () { return loadLib(CDN); })
+    .then(function (pr) { base = pr; boot(); })
+    .catch(function () { say("Не удалось загрузить js-dos: нет локальной копии в ./jsdos и CDN недоступен.<br>См. README.txt, раздел «Offline»."); });
+})();
+</script>
+</body>
+</html>

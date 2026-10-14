@@ -1,0 +1,18 @@
+{
+ "files": [
+  "AUTOEXEC.BAT",
+  "DOCS/WELCOME.TXT",
+  "DOWNLOAD/README.TXT",
+  "EJECT.BAT",
+  "LOLZ.BAT",
+  "NET.BAT",
+  "NOW.COM",
+  "README.TXT",
+  "SNAKE.COM",
+  "VIEW.COM"
+ ],
+ "dirs": [
+  "DOCS",
+  "DOWNLOAD"
+ ]
+}

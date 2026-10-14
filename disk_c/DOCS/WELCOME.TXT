@@ -1,0 +1,14 @@
+LolzDOS 1.0 (Web Edition)
+=========================
+Lovely OS for lovely people.
+
+Programs on drive C:
+  LOLZ     - system status, memory, date/time, program list
+  SNAKE    - classic snake game (arrows or WASD, ESC to quit)
+  VIEW     - text viewer:  VIEW DOCS\WELCOME.TXT
+  NOW      - prints current date and time
+
+Built-in DOS commands: DIR, TYPE, CD, COPY, DEL, MEM, VER, CLS ...
+
+NET <address>   - opens a website in the browser overlay (e.g. NET google.com)
+Drag a .COM/.EXE/.TXT file onto the screen to put it in C:\DOWNLOAD.
