@@ -2,81 +2,147 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>LolzDOS 1.0</title>
 <style>
   html, body { margin:0; height:100%; background:#000; overflow:hidden; color:#e6e6e6;
     font:12px/1 -apple-system, "Segoe UI", system-ui, sans-serif; }
-  #bar { position:fixed; top:0; left:0; right:0; height:28px; z-index:30; display:flex; align-items:center;
+  #bar { position:fixed; top:0; left:0; right:0; height:var(--bar); z-index:30; display:flex; align-items:center;
     gap:2px; padding:0 6px; box-sizing:border-box; background:rgba(22,22,24,.85);
     -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,255,255,.07); user-select:none; }
   #bar button { background:none; border:0; color:#e6e6e6; font:inherit; height:22px; padding:0 10px; border-radius:5px; cursor:pointer; }
   #bar button:hover, #bar button.on { background:rgba(255,255,255,.12); }
-  #clock { margin-left:auto; padding-right:6px; color:#cfcfd2; font-variant-numeric:tabular-nums; }
-  #screen { position:fixed; top:28px; left:0; right:0; bottom:0; background:#000; display:flex; align-items:center; justify-content:center; }
+  #rightgrp { margin-left:auto; display:flex; align-items:center; gap:2px; }
+  #clock { padding:0 6px 0 10px; color:#cfcfd2; font-variant-numeric:tabular-nums; }
+  #screen { position:fixed; top:var(--bar); left:0; right:0; bottom:var(--kb); background:#000; display:flex; align-items:center; justify-content:center; }
   #stage { position:relative; width:100%; height:100%; background:#000; }
   #stage .jsdos-rso { width:100%; height:100%; }
-  #stage canvas { width:100% !important; height:100% !important; image-rendering:pixelated; outline:none; }
-  #stage.m11 canvas { width:auto !important; height:auto !important; max-width:100%; max-height:100%; }
+  #stage canvas { outline:none; }
+  #crt { position:fixed; inset:var(--bar) 0 var(--kb) 0; z-index:3; pointer-events:none; display:none;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,.22) 2px 3px); }
   #status { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center;
     padding:24px; color:#8f8f95; background:#000; z-index:5; line-height:1.6; }
   #status.hide { display:none; }
   #status { font-family:"Courier New", monospace; font-size:14px; }
-  #menu { position:fixed; display:none; z-index:40; min-width:236px; padding:6px; border-radius:9px;
+  #menu, .pop { position:fixed; display:none; z-index:40; min-width:236px; padding:6px; border-radius:9px;
     background:rgba(30,30,33,.96); -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px);
     border:1px solid rgba(255,255,255,.1); box-shadow:0 14px 34px rgba(0,0,0,.6); }
-  #menu.open { display:block; }
+  #menu.open, .pop.open { display:block; }
+  .pop .row span b { color:#fff; font-weight:normal; }
+  .hint { color:#8a8a90; font-size:11px; padding:2px 6px; line-height:1.4; }
   .row { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:5px 6px; }
   .sep { height:1px; background:rgba(255,255,255,.08); margin:4px 0; }
   select, input[type=date] { background:#2a2a2e; color:#eee; border:1px solid #3a3a40; border-radius:5px; padding:3px 6px; font:inherit; color-scheme:dark; }
-  #menu .item { display:block; width:100%; text-align:left; background:none; border:0; color:#e6e6e6; font:inherit; padding:7px 6px; border-radius:5px; cursor:pointer; }
-  #menu .item:hover { background:rgba(255,255,255,.1); }
-  #drop { position:fixed; inset:28px 0 0 0; z-index:35; display:none; align-items:center; justify-content:center;
+  #menu .item, .pop .item { display:block; width:100%; text-align:left; background:none; border:0; color:#e6e6e6; font:inherit; padding:7px 6px; border-radius:5px; cursor:pointer; }
+  #menu .item:hover, .pop .item:hover { background:rgba(255,255,255,.1); }
+  #drop { position:fixed; inset:var(--bar) 0 0 0; z-index:35; display:none; align-items:center; justify-content:center;
     background:rgba(10,10,12,.7); border:2px dashed #6a6a72; box-sizing:border-box; font-size:18px; color:#ddd; pointer-events:none; }
   #drop.on { display:flex; }
-  #toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); z-index:60; max-width:80vw;
+  #netnote { position:fixed; bottom:calc(var(--kb) + 18px); left:50%; transform:translateX(-50%); z-index:61; display:none; align-items:center; gap:10px; max-width:90vw;
+    background:rgba(30,30,33,.97); border:1px solid rgba(255,255,255,.14); padding:9px 12px; border-radius:8px; }
+  #netnote span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #netnote button { background:#2a2a2e; color:#eee; border:1px solid #3a3a40; border-radius:5px; padding:4px 12px; font:inherit; cursor:pointer; }
+  #toast { position:fixed; bottom:calc(var(--kb) + 18px); left:50%; transform:translateX(-50%); z-index:60; max-width:80vw;
     background:rgba(30,30,33,.95); border:1px solid rgba(255,255,255,.12); padding:9px 14px; border-radius:8px; display:none; }
-  #net { position:fixed; inset:28px 0 0 0; z-index:50; display:none; flex-direction:column; background:#111; }
+  #net { position:fixed; inset:var(--bar) 0 0 0; z-index:50; display:none; flex-direction:column; background:#111; }
   #net.on { display:flex; }
   #netbar { display:flex; align-items:center; gap:8px; height:34px; padding:0 8px; background:#1b1b1e; border-bottom:1px solid #2c2c30; flex:none; }
   #neturl { flex:1; color:#aaa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #netbar button { background:#2a2a2e; color:#eee; border:1px solid #3a3a40; border-radius:5px; height:24px; padding:0 10px; font:inherit; cursor:pointer; }
   #netbar button:hover { background:#36363b; }
   #netframe { flex:1; border:0; background:#fff; }
+  #netcard { flex:1; display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:24px; text-align:center; color:#ccc; line-height:1.6; }
+  #netcard b { color:#fff; }
+  #netcard button { background:#2a2a2e; color:#eee; border:1px solid #3a3a40; border-radius:6px; height:34px; padding:0 18px; font:inherit; font-size:14px; cursor:pointer; }
+  #netcard button:hover { background:#36363b; }
+  #net.blocked #netframe, #net.blocked #nethint { display:none; }
+  #net.blocked #netcard { display:flex; }
   #nethint { color:#777; padding:4px 10px; background:#151517; flex:none; }
+  :root { --bar:28px; --kb:0px; }
+  html, body { overscroll-behavior:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+  #menu, .pop { max-width:calc(100vw - 8px); max-height:calc(100vh - var(--bar) - var(--kb) - 12px); overflow:auto; box-sizing:border-box; }
+  #mobIn { position:fixed; left:0; bottom:0; width:1px; height:1px; opacity:0; border:0; padding:0; font-size:16px; }
+  #vkb { position:fixed; left:0; right:0; bottom:0; z-index:25; display:none; box-sizing:border-box; padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+    background:rgba(18,18,20,.97); border-top:1px solid #2c2c30; touch-action:none; user-select:none; -webkit-user-select:none; }
+  #vkb.open { display:block; }
+  #vkb .r { display:flex; gap:4px; margin-bottom:4px; }
+  #vkb .r:last-child { margin-bottom:0; }
+  #vkb .k { flex:1 1 0; min-width:0; height:38px; padding:0; background:#2a2a2e; color:#eee; border:1px solid #3a3a40; border-radius:6px; font:inherit; font-size:14px; touch-action:none; }
+  #vkb .r.f .k { height:30px; font-size:12px; }
+  #vkb .k.w15 { flex:1.5; } #vkb .k.w2 { flex:2; } #vkb .k.w4 { flex:4; }
+  #vkb .k:active { background:#40404a; }
+  #vkb .k.on { background:#3b6fd8; border-color:#5b8cf0; }
+  #pad { position:fixed; left:0; right:0; bottom:calc(var(--kb) + 12px + env(safe-area-inset-bottom)); z-index:24; display:none; justify-content:space-between; align-items:flex-end; padding:0 14px; pointer-events:none; }
+  #pad.open { display:flex; }
+  #pad .g { display:grid; gap:8px; }
+  #pad .dp { grid-template-columns:repeat(3, 58px); grid-template-rows:repeat(3, 58px); }
+  #pad .ac { grid-template-columns:repeat(2, 66px); }
+  #pad .b { pointer-events:auto; touch-action:none; user-select:none; -webkit-user-select:none; height:58px; border-radius:14px; font:inherit; font-size:14px; color:#fff;
+    background:rgba(40,40,46,.6); border:1px solid rgba(255,255,255,.3); }
+  #pad .b.dn { background:rgba(80,130,240,.75); }
+  #pad .sp { visibility:hidden; }
+  @media (pointer:coarse), (max-width:720px) {
+    :root { --bar:44px; }
+    #bar { gap:0; padding:0 4px; overflow-x:auto; scrollbar-width:none; white-space:nowrap; }
+    #bar::-webkit-scrollbar { display:none; }
+    #bar button { height:36px; padding:0 12px; font-size:14px; flex:none; }
+    #rightgrp { flex:none; }
+    #clock { font-size:12px; }
+    .row { padding:9px 6px; }
+    select, input[type=date] { font-size:16px; padding:6px 8px; }
+    #menu .item, .pop .item { padding:11px 6px; }
+  }
 </style>
 </head>
 <body>
 
 <div id="bar">
+  <button id="btnKb" title="Экранная клавиатура">⌨</button>
+  <button id="btnPad" title="Геймпад">🎮</button>
   <button id="btnSettings">Настройки ▾</button>
   <button id="btnReboot">Reboot</button>
   <button id="btnFs">Fullscreen</button>
   <button id="btnCopy">Copy history</button>
-  <span id="clock">1998-06-25 12:00</span>
+  <span id="rightgrp"><button id="btnExp">Эксп. настройки ▾</button><span id="clock">1998-06-25 12:00</span></span>
 </div>
 
 <div id="menu">
   <div class="row"><span>RAM</span>
     <select id="selRam"><option value="16">16 MB</option><option value="32">32 MB</option><option value="64">64 MB</option></select></div>
   <div class="row"><span>Дата</span><input type="date" id="inDate" value="1998-06-25"></div>
-  <div class="row"><span>Масштаб</span>
-    <select id="selScale"><option value="43">4:3</option><option value="fit">Растянуть</option><option value="11">1:1</option></select></div>
+  <div class="row"><span>NET открывает</span>
+    <select id="selNet"><option value="tab">Новая вкладка</option><option value="frame">Окно в странице</option></select></div>
   <div class="row"><span>Звук</span>
     <select id="selSound"><option value="sb16">SB16</option><option value="sbpro1">SBPro</option><option value="none">Speaker</option></select></div>
   <div class="sep"></div>
   <button class="item" id="btnUpload">Загрузить файл в DOS…</button>
   <input type="file" id="fileInput" multiple hidden>
-  <div class="sep"></div>
-  <button class="item" id="btnFlopIn">Вставить дискету A: (.img)…</button>
-  <button class="item" id="btnFlopNew">Новая пустая дискета A:</button>
-  <button class="item" id="btnFlopOut">Сохранить дискету A: (.img)</button>
-  <input type="file" id="flopInput" accept=".img,.ima,.vfd,.flp" hidden>
+  
 </div>
+
+<div id="menuExp" class="pop" style="min-width:280px">
+  <div class="row"><span>Пропорции</span>
+    <select id="selAspect"><option value="orig">Как в DOS</option><option value="4/3">4:3</option><option value="5/4">5:4</option><option value="16/10">16:10</option><option value="16/9">16:9</option></select></div>
+  <div class="row"><span>Размер</span>
+    <select id="selFit"><option value="fit">Вписать в окно</option><option value="int">Целое, чётко</option><option value="fill">На всё окно</option><option value="zoom">Свой масштаб</option></select></div>
+  <div class="row" id="rowZoom"><span>Масштаб <b id="zoomVal"></b></span><input type="range" id="rngZoom" min="50" max="600" step="10"></div>
+  <div class="row"><span>Картинка</span>
+    <select id="selSmooth"><option value="pix">Пиксели</option><option value="smooth">Сглаживание</option></select></div>
+  <label class="row" style="cursor:pointer"><span>Эффект ЭЛТ</span><input type="checkbox" id="chkCrt"></label>
+  <div class="sep"></div>
+  <button class="item" id="btnDispReset">Сбросить</button>
+  <div class="hint" id="dispInfo"></div>
+</div>
+
+<div id="crt"></div>
 
 <div id="screen"><div id="stage"><div id="status"><span class="spin">/</span>&nbsp; Загрузка JS-DOS…</div></div></div>
 <div id="drop">Отпустите файл — он попадёт в C:\DOWNLOAD</div>
+<div id="pad"></div>
+<div id="vkb"></div>
+<input id="mobIn" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-hidden="true" tabindex="-1">
 <div id="toast"></div>
+<div id="netnote"><span id="netnotetxt"></span><button id="netnoteGo">Открыть</button><button id="netnoteX">✕</button></div>
 
 <div id="net">
   <div id="netbar">
@@ -85,6 +151,11 @@
     <button id="netClose">Закрыть браузер и вернуться в DOS</button>
   </div>
   <div id="nethint">Если страница пустая — сайт запрещает встраивание, откройте его в новой вкладке.</div>
+  <div id="netcard">
+    <div><b id="nethost"></b> запрещает показывать себя внутри другой страницы.</div>
+    <button id="netTab2">Открыть в новой вкладке</button>
+    <div style="color:#777">Затем вернитесь сюда и нажмите «Закрыть браузер и вернуться в DOS».</div>
+  </div>
   <iframe id="netframe" sandbox="allow-scripts allow-forms allow-popups allow-same-origin"></iframe>
 </div>
 
@@ -95,9 +166,11 @@
   var $ = function (id) { return document.getElementById(id); };
   var stage = $("stage"), menu = $("menu");
   var base = null, player = null, ci = null, slash = false, blobUrl = null, busy = false;
-  var hist = "", floppy = null;
+  var hist = "";
   var uploads = {};                       // name -> Uint8Array, re-injected on every reboot
-  var S = { ram: "16", date: "1998-06-25", scale: "43", sound: "sb16" };
+  var S = { ram: "16", date: "1998-06-25", scale: "43", sound: "sb16", netMode: "tab",
+    aspect: "4/3", fit: "fit", zoom: 200, smooth: "pix", crt: false };
+  var DISP = { aspect: "4/3", fit: "fit", zoom: 200, smooth: "pix", crt: false };
   try { Object.assign(S, JSON.parse(localStorage.getItem("lolzdos") || "{}")); } catch (e) {}
   function save() { try { localStorage.setItem("lolzdos", JSON.stringify(S)); } catch (e) {} }
 
@@ -123,7 +196,8 @@
     b = clean(b).slice(0, 8) || "FILE"; x = clean(x).slice(0, 3); return x ? b + "." + x : b;
   }
   function p(path) { return (slash ? "/" : "") + path; }
-  async function fsWrite(path, data) { await ci.fsWriteFile(p(path), data); }
+  // js-dos may take ownership (detach) of the buffer it is given, so always pass a copy
+  async function fsWrite(path, data) { await ci.fsWriteFile(p(path), typeof data === "string" ? data : data.slice()); }
 
   /* ---------- zip writer (stored) : builds the disk bundle in the browser ---------- */
   var crcT = (function () { var t = [], c, n, k; for (n = 0; n < 256; n++) { c = n; for (k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
@@ -153,7 +227,7 @@
     return ["[sdl]", "autolock=false", "[cpu]", "core=auto", "cputype=auto", "cycles=auto",
       "[dosbox]", "machine=svga_s3", "memsize=" + S.ram,
       "[sblaster]", "sbtype=" + S.sound, "[speaker]", "pcspeaker=true",
-      "[autoexec]", "@echo off", "mount c ."].concat(floppy ? ["imgmount a c:\\FLOPPY.IMG -t floppy"] : [], ["c:", "call AUTOEXEC.BAT", ""]).join("\n");
+      "[autoexec]", "@echo off", "mount c .", "c:", "call AUTOEXEC.BAT", ""].join("\n");
   }
   async function buildBundle() {
     var m = await (await fetch("disk_manifest.json", { cache: "no-store" })).json(), enc = new TextEncoder();
@@ -161,7 +235,6 @@
     m.dirs.forEach(function (d) { entries.push({ name: d + "/" }); });
     var datas = await Promise.all(m.files.map(function (f) { return fetch("disk_c/" + f, { cache: "no-store" }).then(function (r) { if (!r.ok) throw 0; return r.arrayBuffer(); }); }));
     m.files.forEach(function (f, i) { entries.push({ name: f, data: new Uint8Array(datas[i]) }); });
-    if (floppy) entries.push({ name: "FLOPPY.IMG", data: floppy });
     entries.push({ name: "LOLZDATE.CFG", data: enc.encode(clockText()) });
     Object.keys(uploads).forEach(function (n) { entries.push({ name: "DOWNLOAD/" + n, data: uploads[n] }); });
     return URL.createObjectURL(makeZip(entries));
@@ -176,10 +249,8 @@
       document.head.appendChild(s);
     });
   }
-  async function boot(newFloppy) {
+  async function boot() {
     clockReset(); hist = "";
-    if (newFloppy) floppy = newFloppy;
-    else if (ci && floppy) { try { floppy = new Uint8Array(await ci.fsReadFile(p("FLOPPY.IMG"))); } catch (e) {} }
     if (player) { try { await player.stop(); } catch (e) {} player = null; ci = null; stage.innerHTML = '<div id="status"></div>'; }
     if (blobUrl) { URL.revokeObjectURL(blobUrl); blobUrl = null; }
     say('<span class="spin">/</span>&nbsp; Загрузка LolzDOS…');
@@ -198,31 +269,69 @@
     try { await ci.fsWriteFile("LOLZDATE.CFG", t); slash = false; }
     catch (e) { try { await ci.fsWriteFile("/LOLZDATE.CFG", t); slash = true; } catch (e2) {} }
     try { ci.events().onStdout(function (m) { hist = (hist + m).slice(-8192); }); } catch (e) {}
-    applyScale(); setTimeout(focusDos, 300);
+    applyDisplay(); setTimeout(focusDos, 300);
+    if (!onReady.done) { onReady.done = true; if (window.matchMedia("(pointer:coarse)").matches) setKb(true); }
   }
 
-  /* ---------- scaling ---------- */
-  function applyScale() {
-    var sw = innerWidth, sh = innerHeight - 28;
-    stage.classList.toggle("m11", S.scale === "11");
-    var w = "100%", h = "100%";
-    if (S.scale === "43") { var ww = Math.min(sw, sh * 4 / 3); w = ww + "px"; h = ww * 3 / 4 + "px"; }
-    stage.style.width = w; stage.style.height = h;
+  /* ---------- display (positions the DOS canvas itself, independent of js-dos wrappers) ---------- */
+  function applyDisplay() {
+    var c = stage.querySelector("canvas"); if (!c) return;
+    var cw = c.width || 640, ch = c.height || 400, bw = innerWidth, BAR = $("bar").offsetHeight, bh = innerHeight - BAR - syncKb();
+    var ar = S.aspect === "orig" ? cw / ch : Number(S.aspect.split("/")[0]) / Number(S.aspect.split("/")[1]);
+    var w, h, k;
+    function fit() { if (bw / bh > ar) { h = bh; w = h * ar; } else { w = bw; h = w / ar; } }
+    if (S.fit === "fill") { w = bw; h = bh; }
+    else if (S.fit === "zoom") { h = ch * S.zoom / 100; w = h * ar; }
+    else if (S.fit === "int") { k = Math.floor(Math.min(bw / (ch * ar), bh / ch)); if (k >= 1) { h = ch * k; w = h * ar; } else fit(); }
+    else fit();
+    var L = (bw - w) / 2, T = BAR + (bh - h) / 2, st = c.style;
+    [["position", "fixed"], ["left", L + "px"], ["top", T + "px"], ["width", w + "px"], ["height", h + "px"], ["max-width", "none"],
+     ["max-height", "none"], ["margin", "0"], ["transform", "none"], ["image-rendering", S.smooth === "smooth" ? "auto" : "pixelated"]]
+      .forEach(function (kv) { st.setProperty(kv[0], kv[1], "important"); });
+    var r = c.getBoundingClientRect();   // an ancestor with transform/filter shifts "fixed": correct once
+    if (Math.abs(r.left - L) > 1 || Math.abs(r.top - T) > 1) { st.setProperty("left", (2 * L - r.left) + "px", "important"); st.setProperty("top", (2 * T - r.top) + "px", "important"); }
+    $("dispInfo").textContent = "Экран DOS " + cw + "×" + ch + " → " + Math.round(w) + "×" + Math.round(h) + " (×" + (h / ch).toFixed(2) + ")";
   }
-  addEventListener("resize", applyScale);
+  setInterval(applyDisplay, 300);
+  addEventListener("resize", applyDisplay);
 
   /* ---------- settings menu ---------- */
-  function openMenu(on) {
-    var b = $("btnSettings"), r = b.getBoundingClientRect();
-    menu.style.left = r.left + "px"; menu.style.top = (r.bottom + 4) + "px";
-    menu.classList.toggle("open", on); b.classList.toggle("on", on);
+  var POPS = [["btnSettings", "menu"], ["btnExp", "menuExp"]];
+  function showPop(i, on) {
+    POPS.forEach(function (pr, j) {
+      var m = $(pr[1]), b = $(pr[0]), open = j === i && on;
+      if (open) {
+        var r = b.getBoundingClientRect(); m.style.top = (r.bottom + 4) + "px";
+        if (j === 0) { m.style.left = r.left + "px"; m.style.right = "auto"; } else { m.style.right = Math.max(4, innerWidth - r.right) + "px"; m.style.left = "auto"; }
+      }
+      m.classList.toggle("open", open); b.classList.toggle("on", open);
+      if (open && j === 0) m.style.left = Math.max(4, Math.min(parseFloat(m.style.left), innerWidth - m.offsetWidth - 4)) + "px";
+    });
   }
-  $("btnSettings").onclick = function (e) { e.stopPropagation(); openMenu(!menu.classList.contains("open")); };
-  document.addEventListener("click", function (e) { if (!menu.contains(e.target)) { openMenu(false); } });
-  $("selRam").value = S.ram; $("inDate").value = S.date; $("selScale").value = S.scale; $("selSound").value = S.sound;
+  function openMenu(on) { showPop(0, on); }
+  POPS.forEach(function (pr, i) { $(pr[0]).onclick = function (e) { e.stopPropagation(); showPop(i, !$(pr[1]).classList.contains("open")); }; });
+  document.addEventListener("click", function (e) {   // composedPath: still correct after a click re-rendered the list
+    var path = e.composedPath ? e.composedPath() : [];
+    if (!POPS.some(function (pr) { return path.indexOf($(pr[1])) >= 0; })) showPop(-1, false);
+  });
+
+  /* ---------- experimental display settings ---------- */
+  function syncDisp() {
+    $("selAspect").value = S.aspect; $("selFit").value = S.fit; $("rngZoom").value = S.zoom; $("selSmooth").value = S.smooth; $("chkCrt").checked = !!S.crt;
+    $("rowZoom").style.display = S.fit === "zoom" ? "" : "none"; $("zoomVal").textContent = S.zoom + "%";
+    $("crt").style.display = S.crt ? "block" : "none"; applyDisplay();
+  }
+  $("selAspect").onchange = function () { S.aspect = this.value; save(); syncDisp(); };
+  $("selFit").onchange = function () { S.fit = this.value; save(); syncDisp(); };
+  $("rngZoom").oninput = function () { S.zoom = Number(this.value); save(); syncDisp(); };
+  $("selSmooth").onchange = function () { S.smooth = this.value; save(); syncDisp(); };
+  $("chkCrt").onchange = function () { S.crt = this.checked; save(); syncDisp(); };
+  $("btnDispReset").onclick = function () { Object.assign(S, DISP); save(); syncDisp(); };
+  syncDisp();
+
+  $("selRam").value = S.ram; $("inDate").value = S.date; $("selSound").value = S.sound;
   $("selRam").onchange = function () { S.ram = this.value; save(); toast("RAM " + S.ram + " MB — применится после Reboot"); };
   $("selSound").onchange = function () { S.sound = this.value; save(); toast("Звук изменён — применится после Reboot"); };
-  $("selScale").onchange = function () { S.scale = this.value; save(); applyScale(); };
   $("inDate").onchange = async function () {
     if (!this.value) return; S.date = this.value; save(); clockReset();
     if (ci) { try { await fsWrite("LOLZDATE.CFG", clockText()); } catch (e) {} }
@@ -234,8 +343,7 @@
   /* extensions that make sense for DOS (edit this list to allow more) */
   var ALLOWED = ("COM EXE BAT TXT DOC NFO ASM BAS C H " +                          // programs and text
                  "DAT CFG INI SYS OVL OVR BIN LST MAP HLP DIZ " +                  // config and game data
-                 "PAK WAD GRP LVL SND VOC WAV MID XMI SBK FNT PAL PCX BMP TGA " +  // game assets
-                 "IMG IMA VFD FLP").split(" ");                                    // floppy images
+                 "PAK WAD GRP LVL SND VOC WAV MID XMI SBK FNT PAL PCX BMP TGA").split(" ");  // game assets
   var MAX_FILE = 8 * 1024 * 1024;
   function extOf(n) { var i = n.lastIndexOf("."); return i > 0 ? n.slice(i + 1).toUpperCase() : ""; }
   function accept() { return ALLOWED.map(function (x) { return "." + x.toLowerCase(); }).join(","); }
@@ -245,9 +353,8 @@
     for (var i = 0; i < files.length; i++) {
       var f = files[i];
       if (ALLOWED.indexOf(extOf(f.name)) < 0) { bad.push(f.name + " (тип)"); continue; }
-      if (f.size > MAX_FILE && !/\.(IMG|IMA|VFD|FLP)$/i.test(f.name)) { bad.push(f.name + " (>8 МБ)"); continue; }
+      if (f.size > MAX_FILE) { bad.push(f.name + " (>8 МБ)"); continue; }
       var name = dosName(f.name), data = new Uint8Array(await f.arrayBuffer());
-      if (/\.(IMG|IMA|VFD|FLP)$/i.test(f.name) && FLOPPY_SIZES.indexOf(data.length) >= 0) { insertFloppy(data); return; }
       uploads[name] = data;
       if (!ci) { toast(name + " будет добавлен при загрузке DOS"); continue; }
       try { await fsWrite("DOWNLOAD/" + name, data); toast("Сохранено: C:\\DOWNLOAD\\" + name + " — запустите по имени"); }
@@ -275,49 +382,35 @@
     toast("Скопировано символов: " + t.length); focusDos();
   };
 
-  /* ---------- floppy A: ---------- */
-  var FLOPPY_SIZES = [163840, 184320, 327680, 368640, 737280, 1228800, 1474560, 2949120];
-  function blankFloppy() {
-    var b = new Uint8Array(1474560), w16 = function (o, v) { b[o] = v & 255; b[o + 1] = v >> 8; };
-    b.set([0xEB, 0x3C, 0x90], 0); b.set(new TextEncoder().encode("LOLZDOS "), 3);
-    w16(11, 512); b[13] = 1; w16(14, 1); b[16] = 2; w16(17, 224); w16(19, 2880); b[21] = 0xF0; w16(22, 9); w16(24, 18); w16(26, 2);
-    b[38] = 0x29; b.set([0x4C, 0x4F, 0x4C, 0x5A], 39);
-    b.set(new TextEncoder().encode("LOLZ FLOPPY"), 43); b.set(new TextEncoder().encode("FAT12   "), 54);
-    b[510] = 0x55; b[511] = 0xAA;
-    [512, 512 + 9 * 512].forEach(function (o) { b[o] = 0xF0; b[o + 1] = 0xFF; b[o + 2] = 0xFF; });
-    return b;
-  }
-  function insertFloppy(data) {
-    floppy = data; toast("Дискета вставлена в A: — перезагрузка…");
-    setTimeout(function () { if (base) boot(data); }, 400);
-  }
-  $("btnFlopIn").onclick = function () { $("flopInput").click(); };
-  $("flopInput").onchange = async function () {
-    openMenu(false); var f = this.files[0]; this.value = ""; if (!f) return;
-    var d = new Uint8Array(await f.arrayBuffer());
-    if (FLOPPY_SIZES.indexOf(d.length) < 0) { toast("Это не похоже на образ дискеты (размер " + d.length + ")"); return; }
-    insertFloppy(d);
-  };
-  $("btnFlopNew").onclick = function () { openMenu(false); insertFloppy(blankFloppy()); };
-  $("btnFlopOut").onclick = async function () {
-    openMenu(false); var d = floppy;
-    if (ci) { try { d = new Uint8Array(await ci.fsReadFile(p("FLOPPY.IMG"))); floppy = d; } catch (e) {} }
-    if (!d) { toast("Дискета не вставлена"); return; }
-    var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([d])); a.download = "LOLZDOS_A.IMG";
-    document.body.appendChild(a); a.click(); a.remove(); toast("Сохранено LOLZDOS_A.IMG (перед этим лучше выполнить EJECT в DOS)");
-  };
-
   /* ---------- NET command: poll C:\NET_URL.TMP ---------- */
   var netUrl = "";
   function normUrl(t) {
     t = t.replace(/^["']|["']$/g, "").trim(); if (!t) return null;
+    if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(t) && (/\s/.test(t) || !/[.:\/]/.test(t))) return "https://duckduckgo.com/?q=" + encodeURIComponent(t);   // not an address: search
     if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(t)) t = "https://" + t;
     try { var u = new URL(t); return /^https?:$/.test(u.protocol) ? u.href : null; } catch (e) { return null; }
   }
-  function openNet(u) { netUrl = u; $("neturl").textContent = u; $("netframe").src = u; $("net").classList.add("on"); }
+  var NO_FRAME = /(^|\.)(google|youtube|facebook|instagram|twitter|github|linkedin|reddit|amazon|netflix|yandex|discord|telegram|whatsapp|bing|microsoft|apple)\.[a-z.]+$|(^|\.)(x\.com|vk\.com|vk\.ru|t\.me)$/i;
+  function openNet(u) {
+    netUrl = u; $("neturl").textContent = u;
+    var host = new URL(u).hostname, blocked = NO_FRAME.test(host);
+    $("net").classList.toggle("blocked", blocked); $("nethost").textContent = host;
+    $("netframe").src = blocked ? "about:blank" : u;
+    $("net").classList.add("on");
+  }
+  function handleNet(u) {
+    if (S.netMode === "frame") { openNet(u); return; }
+    var w = null; try { w = window.open(u, "_blank"); } catch (e) {}
+    if (w) { try { w.opener = null; } catch (e) {} toast("NET: " + u); } else showNetNote(u);   // popup blocked: ask for one click
+  }
+  function showNetNote(u) { netUrl = u; $("netnotetxt").textContent = "DOS открывает: " + u; $("netnote").style.display = "flex"; }
+  $("netnoteGo").onclick = function () { window.open(netUrl, "_blank", "noopener"); $("netnote").style.display = "none"; focusDos(); };
+  $("netnoteX").onclick = function () { $("netnote").style.display = "none"; focusDos(); };
+  $("selNet").value = S.netMode;
+  $("selNet").onchange = function () { S.netMode = this.value; save(); };
   function closeNet() { $("net").classList.remove("on"); $("netframe").src = "about:blank"; setTimeout(focusDos, 100); }
   $("netClose").onclick = closeNet;
-  $("netTab").onclick = function () { window.open(netUrl, "_blank", "noopener"); };
+  $("netTab").onclick = $("netTab2").onclick = function () { window.open(netUrl, "_blank", "noopener"); };
   setInterval(async function () {
     if (!ci || busy || $("net").classList.contains("on")) return;
     busy = true;
@@ -326,11 +419,116 @@
       if (d && d.length) {
         var txt = new TextDecoder().decode(d).replace(/[\r\n\x1a]+/g, " ").trim();
         try { await ci.fsDeleteFile(p("NET_URL.TMP")); } catch (e) {}
-        var u = normUrl(txt); if (u) openNet(u); else toast("NET: неверный адрес");
+        var u = normUrl(txt); if (u) handleNet(u); else toast("NET: неверный адрес");
       }
     } catch (e) { /* file not there yet */ }
     busy = false;
   }, 700);
+
+  /* ---------- touch controls: on-screen keyboard, gamepad, native keyboard bridge ---------- */
+  // js-dos key codes (GLFW-style): A-Z 65-90, 0-9 48-57, Space 32, Esc 256, Enter 257, Tab 258, Backspace 259, arrows 262-265, F1-F12 290-301
+  var K = { Escape: 256, Enter: 257, Tab: 258, Backspace: 259, Insert: 260, Delete: 261, ArrowRight: 262, ArrowLeft: 263, ArrowDown: 264, ArrowUp: 265,
+            PageUp: 266, PageDown: 267, Home: 268, End: 269, Space: 32, Shift: 340, Ctrl: 341, Alt: 342 };
+  for (var fi = 1; fi <= 12; fi++) K["F" + fi] = 289 + fi;
+  var PUNCT = { "`": 96, "-": 45, "=": 61, "[": 91, "]": 93, "\\": 92, ";": 59, "'": 39, ",": 44, ".": 46, "/": 47 };
+  var SHIFTED = { "~": "`", "_": "-", "+": "=", "{": "[", "}": "]", "|": "\\", ":": ";", '"': "'", "<": ",", ">": ".", "?": "/",
+                  "!": "1", "@": "2", "#": "3", "$": "4", "%": "5", "^": "6", "&": "7", "*": "8", "(": "9", ")": "0" };
+  var LABEL = { "Esc": "Escape", "⌫": "Backspace", "↑": "ArrowUp", "↓": "ArrowDown", "←": "ArrowLeft", "→": "ArrowRight", "Del": "Delete" };
+  function charCode(c) {
+    if (/[a-z]/i.test(c) && c.length === 1) return c.toUpperCase().charCodeAt(0);
+    if (/^[0-9]$/.test(c)) return c.charCodeAt(0);
+    return PUNCT[c];
+  }
+  function kEvt(code, down) { if (!ci) return; try { ci.sendKeyEvent(code, down); } catch (e) {} }
+  function tap(code, mods) {
+    mods = mods || []; mods.forEach(function (m) { kEvt(m, true); }); kEvt(code, true);
+    setTimeout(function () { kEvt(code, false); mods.forEach(function (m) { kEvt(m, false); }); }, 40);
+  }
+  var kq = [], pumping = false;                      // keystrokes are serialised so repeated keys ("ll") are not merged
+  function enqueue(fn) { kq.push(fn); if (!pumping) { pumping = true; pump(); } }
+  function pump() { var j = kq.shift(); if (!j) { pumping = false; return; } j(); setTimeout(pump, 70); }
+  function typeChar(ch) {
+    var code, shift = false;
+    if (/^[A-Z]$/.test(ch)) { code = ch.charCodeAt(0); shift = true; }
+    else if (ch === " ") code = 32; else if (ch === "\n") code = 257;
+    else if (SHIFTED[ch]) { shift = true; code = charCode(SHIFTED[ch]); }
+    else code = charCode(ch);
+    if (code === undefined) return;
+    tap(code, shift ? [340] : []);
+  }
+
+  var lat = {};                                       // latched Shift / Ctrl / Alt
+  function refreshLat() { Array.prototype.forEach.call($("vkb").querySelectorAll(".k"), function (b) { b.classList.toggle("on", !!lat[b.dataset.k]); }); }
+  function press(l) {
+    if (l === "Aa") { var mi = $("mobIn"); mi.focus(); return; }
+    if (l === "Shift" || l === "Ctrl" || l === "Alt") { lat[l] = !lat[l]; refreshLat(); return; }
+    var mods = []; if (lat.Shift) mods.push(340); if (lat.Ctrl) mods.push(341); if (lat.Alt) mods.push(342);
+    var name = LABEL[l] || l, code = K[name]; if (code === undefined) code = charCode(name);
+    if (code === undefined) return;
+    enqueue(function () { tap(code, mods); }); lat = {}; refreshLat();
+  }
+  var ROWS = [
+    ["Esc", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"],
+    ["`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "⌫"],
+    ["Tab", "q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]", "\\"],
+    ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'", "Enter"],
+    ["Shift", "z", "x", "c", "v", "b", "n", "m", ",", ".", "/", "↑"],
+    ["Ctrl", "Alt", "Space", "←", "↓", "→", "Del", "Aa"]
+  ];
+  var WIDE = { "Tab": "w15", "Enter": "w2", "Shift": "w2", "Ctrl": "w15", "Alt": "w15", "Space": "w4", "⌫": "w15" };
+  ROWS.forEach(function (row, ri) {
+    var d = document.createElement("div"); d.className = "r" + (ri === 0 ? " f" : "");
+    row.forEach(function (l) { var b = document.createElement("button"); b.className = "k " + (WIDE[l] || ""); b.textContent = l; b.dataset.k = l; d.appendChild(b); });
+    $("vkb").appendChild(d);
+  });
+  $("vkb").addEventListener("pointerdown", function (e) {
+    var b = e.target.closest ? e.target.closest(".k") : null; if (!b) return;
+    e.preventDefault(); press(b.dataset.k);
+  });
+
+  function syncKb() {                                 // returns keyboard height and publishes it as --kb
+    var h = $("vkb").classList.contains("open") ? $("vkb").offsetHeight : 0;
+    document.documentElement.style.setProperty("--kb", h + "px"); return h;
+  }
+  function setKb(on) { $("vkb").classList.toggle("open", on); $("btnKb").classList.toggle("on", on); syncKb(); applyDisplay(); }
+  $("btnKb").onclick = function () { setKb(!$("vkb").classList.contains("open")); };
+
+  // gamepad: held keys (arrows, Ctrl, Alt, Space, Enter, Shift, Esc)
+  (function () {
+    var pad = $("pad"), L = document.createElement("div"), R = document.createElement("div");
+    L.className = "g dp"; R.className = "g ac";
+    [["", "ArrowUp", ""], ["ArrowLeft", "", "ArrowRight"], ["", "ArrowDown", ""]].forEach(function (row) {
+      row.forEach(function (n) { L.appendChild(padBtn(n)); });
+    });
+    ["Ctrl", "Alt", "Space", "Enter", "Shift", "Escape"].forEach(function (n) { R.appendChild(padBtn(n)); });
+    pad.appendChild(L); pad.appendChild(R);
+    function padBtn(n) {
+      var b = document.createElement("button"); b.className = "b" + (n ? "" : " sp");
+      b.textContent = { ArrowUp: "▲", ArrowDown: "▼", ArrowLeft: "◀", ArrowRight: "▶", Escape: "Esc" }[n] || n;
+      if (!n) return b;
+      var code = K[n], held = false;
+      function up() { if (held) { held = false; kEvt(code, false); b.classList.remove("dn"); } }
+      b.addEventListener("pointerdown", function (e) { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (x) {} if (!held) { held = true; kEvt(code, true); b.classList.add("dn"); } });
+      b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up); b.addEventListener("lostpointercapture", up);
+      return b;
+    }
+  })();
+  $("btnPad").onclick = function () { var o = !$("pad").classList.contains("open"); $("pad").classList.toggle("open", o); this.classList.toggle("on", o); };
+
+  // native phone keyboard ("Aa"): diff the hidden input against a sentinel and forward the changes as key presses
+  var mobIn = $("mobIn"), SENT = "\u2022\u2022\u2022\u2022", lastV = SENT;
+  function resetIn() { mobIn.value = SENT; lastV = SENT; try { mobIn.setSelectionRange(SENT.length, SENT.length); } catch (e) {} }
+  mobIn.addEventListener("focus", resetIn);
+  mobIn.addEventListener("input", function () {
+    var v = mobIn.value, cp = 0;
+    while (cp < v.length && cp < lastV.length && v[cp] === lastV[cp]) cp++;
+    var back = lastV.length - cp, add = v.slice(cp), i;
+    for (i = 0; i < back; i++) enqueue(function () { tap(259); });
+    add.split("").forEach(function (ch) { enqueue(function () { typeChar(ch); }); });
+    lastV = v; if (v.length < 3 || v.length > 30) resetIn();
+  });
+  mobIn.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); enqueue(function () { tap(257); }); } });
+  (function () { var de = document.documentElement; if (!(de.requestFullscreen || de.webkitRequestFullscreen)) $("btnFs").style.display = "none"; })();
 
   /* ---------- start ---------- */
   if (location.protocol === "file:") {
